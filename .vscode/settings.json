@@ -1,0 +1,8 @@
+{
+    "appService.zipIgnorePattern": [
+        "node_modules{,/**}",
+        ".vscode{,/**}"
+    ],
+    "appService.defaultWebAppToDeploy": "/subscriptions/a9ed5184-f3c7-4a7b-9e30-219a4e915e46/resourceGroups/appsvc_linux_centralus/providers/Microsoft.Web/sites/IMDB-Game",
+    "appService.deploySubpath": ""
+}
