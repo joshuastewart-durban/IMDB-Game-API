@@ -85,6 +85,16 @@ class GameService {
       });
     return result;
   }
+
+  async scorePlayer(data){
+    let gameData = await this.gameDao
+    .getItem(data.game)
+    .then(result => {
+        // get question result
+        // update player score
+        // return player score
+    });
+  }
 }
 
 module.exports = GameService;

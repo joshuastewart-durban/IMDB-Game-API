@@ -93,6 +93,7 @@ io.on("connection", function(socket) {
    * Handle the turn played by either player and notify the other.
    */
   socket.on("playTurn", function(data) {
+      
     socket.broadcast.to(data.game).emit("turnPlayed", {
       question: data.tile,
       score: score,
