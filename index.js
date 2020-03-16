@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const morgan = require("morgan");
-var socketIO = require('socket.io');
+var socketIO = require("socket.io");
 
 const CosmosClient = require("@azure/cosmos").CosmosClient;
 const config = require("./config");
@@ -12,7 +12,7 @@ const QuestionService = require("./services/question-service");
 const { handleError } = require("./error-handler/error-handler");
 
 const app = express();
-var server = require('http').Server(app);
+var server = require("http").Server(app);
 var io = socketIO(server);
 
 app.use(morgan("tiny"));
@@ -23,12 +23,14 @@ const cosmosClient = new CosmosClient({
   endpoint: config.host,
   key: config.authKey
 });
+
 const questionService = new QuestionService();
 const gameDao = new GameDao(
   cosmosClient,
   config.databaseId,
   config.containerId
 );
+
 const gameService = new GameService(gameDao, questionService);
 
 gameDao
@@ -42,15 +44,72 @@ gameDao
     );
     process.exit(1);
   });
+
 // Add the WebSocket handlers
-io.on('connection', function(socket) {
-});
-app.get("/", (req, res, next) => {
-  gameService.findGame(req, res, next);
+io.on("connection", function(socket) {
+  console.log("Player connected!");
+  /**
+   * Create a new game room and notify the creator of game.
+   */
+  socket.on("createGame", function(data) {
+    if (data.name) {
+      gameService
+        .createGame(data)
+        .then(result => {
+          console.log('Created game', socket.id);
+          socket.join(result.id);
+          socket.emit("newGame", {
+            gameId: result.id
+          });
+        })
+        .catch(err => {
+          socket.emit("error", "Server error");
+        });
+    } else {
+      socket.emit("error", "Provide a player name.");
+    }
+  });
+
+  /**
+   * Connect the Player 2 to the room he requested. Show error if room full.
+   */
+  socket.on("joinGame", function(data) {
+    gameService.joinGame(data).then(result => {
+      console.log('joinedGame',socket.id);
+      if (result.success) {
+        socket.join(data.game);
+        socket.emit("joinGame", {
+            gameId: data.game
+          });
+        socket.broadcast.to(data.game).emit("playerOne", { joined: data.name , question: result.question});
+        socket.emit("playerTwo", { name: data.name, game: data.game, question: result.question});
+      } else {
+        socket.emit("err", { message: "Sorry, The game is full!" });
+      }
+    });
+  });
+
+  /**
+   * Handle the turn played by either player and notify the other.
+   */
+  socket.on("playTurn", function(data) {
+    socket.broadcast.to(data.game).emit("turnPlayed", {
+      question: data.tile,
+      score: score,
+      game: data.game
+    });
+  });
+
+  /**
+   * Notify the players about the victor.
+   */
+  socket.on("gameEnded", function(data) {
+    socket.broadcast.to(data.game).emit("gameEnd", data);
+  });
 });
 
-app.post("/createGame", (req, res,next) => {
-  gameService.createGame(req, res, next).catch(next);
+app.get("/", (req, res, next) => {
+  gameService.findGame(req, res, next);
 });
 
 app.use((err, req, res, next) => {
@@ -61,7 +120,3 @@ const port = process.env.PORT || 4000;
 server.listen(port, () => {
   console.log(`listening on ${port}`);
 });
-
-setInterval(function() {
-    io.sockets.emit('message', 'hi!');
-  }, 1000);

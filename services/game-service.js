@@ -1,5 +1,5 @@
 const GameDao = require("../models/GameDao");
-const {ErrorHandler} = require("../error-handler/error-handler")
+const { ErrorHandler } = require("../error-handler/error-handler");
 
 class GameService {
   /**
@@ -10,71 +10,80 @@ class GameService {
     this.gameDao = gameDao;
     this.questionService = questionService;
   }
-  async findGame(req, res) {
+  async findGame(data) {
     const querySpec = {
-      query: "SELECT * FROM root r"
-      //   parameters: [
-      //     {
-      //       name: "@completed",
-      //       value: false
-      //     }
-      //   ]
+      query: "SELECT * FROM c WHERE c.id = @id",
+      parameters: [
+        {
+          name: "@id",
+          value: data.game
+        }
+      ]
     };
-
-    const items = await this.gameDao.find(querySpec);
-    res.json({
-      items
-    });
+    return await this.gameDao.find(querySpec);
   }
 
-  async createGame(req, res, next) {
-    console.log(req.body);
-    if (req.body.name) {
-      let name = req.body.name;
-    } else {
-        throw new ErrorHandler(404, 'Missing player name')
-    }
-
+  async createGame(data) {
     let questions = await this.questionService
       .generateQuestions()
       .then(result => {
         return result;
       });
     const item = {
-      id: Math.floor(Math.random() * 1000 + 10).toString(),
+      id: "game-" + Math.floor(Math.random() * 100000 + 10).toString(),
       players: {
         playerOne: {
           id: 1,
-          name: req.body.name,
+          name: data.name,
           score: 0,
-          joined: true
+          joined: true,
+          nextIndex: 0
         },
         playerTwo: {
           id: 2,
           name: "",
           score: 0,
-          joined: false
+          joined: false,
+          nextIndex: 0
         }
       },
       questions
     };
     await this.gameDao.addItem(item);
-    res.json({
+    return {
       id: item.id
-    });
+    };
   }
 
-  async completeTask(req, res) {
-    const completedTasks = Object.keys(req.body);
-    const tasks = [];
+  async joinGame(data) {
+    let gameData = await this.gameDao
+      .getItem(data.game)
+      .then(result => {
+        if (!result.players.playerTwo.joined) {
+          result.players.playerTwo.joined = true;
+          result.players.playerTwo.name = data.name;
+          result.players.playerOne.nextIndex = 1;
+          result.players.playerTwo.nextIndex = 1;
+        }
+        return { game: data.game, result };
+      })
+      .catch(err => {
+        return { success: false, data: null };
+      });
 
-    completedTasks.forEach(task => {
-      tasks.push(this.taskDao.updateItem(task));
-    });
-
-    await Promise.all(tasks);
-
-    res.redirect("/");
+    let result = await this.gameDao
+      .updateItem(gameData.game, gameData.result)
+      .then(result => {
+        return {
+          success: true,
+          data: result,
+          question: result.questions[0]
+        };
+      })
+      .catch(err => {
+        return { success: false, data: null };
+      });
+    return result;
   }
 }
 
