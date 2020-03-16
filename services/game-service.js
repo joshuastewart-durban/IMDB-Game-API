@@ -1,5 +1,5 @@
 const GameDao = require("../models/GameDao");
-const { ErrorHandler } = require("../error-handler/error-handler");
+const gameUtils = require("../utils/game-utils");
 
 class GameService {
   /**
@@ -37,14 +37,16 @@ class GameService {
           name: data.name,
           score: 0,
           joined: true,
-          nextIndex: 0
+          nextIndex: 0,
+          finished: false
         },
         playerTwo: {
           id: 2,
           name: "",
           score: 0,
           joined: false,
-          nextIndex: 0
+          nextIndex: 0,
+          finished: false
         }
       },
       questions
@@ -86,14 +88,37 @@ class GameService {
     return result;
   }
 
-  async scorePlayer(data){
-    let gameData = await this.gameDao
-    .getItem(data.game)
-    .then(result => {
-        // get question result
-        // update player score
-        // return player score
+  async playTurn(data) {
+    let gameData = await this.gameDao.getItem(data.game).then(result => {
+      // get question result
+      let player = result.players[data.playerId];
+      let answerResult = gameUtils._validateAnswer(
+        data.answer,
+        data.question,
+        result.questions[player.nextIndex]
+      );
+      let score = gameUtils._score(answerResult, player.score);
+
+      // update player score
+      result.players[data.playerId].score = score;
+      if (player.nextIndex < 8) {
+        result.players[data.playerId].nextIndex = player.nextIndex++;
+      } else {
+        result.players[data.playerId].finished = true;
+      }
+      return result;
     });
+    // return player score
+    let score = await this.gameDao
+      .updateItem(data.game, gameData)
+      .then(result => {
+        return {
+          score: result.players[data.playerId].score,
+          question: result.questions[result.players[data.playerId].nextIndex],
+          finished: result.players[data.playerId].finished
+        };
+      });
+    return score;
   }
 }
 

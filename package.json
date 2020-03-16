@@ -6,7 +6,8 @@
     "license": "MIT",
     "author": "Microsoft",
     "scripts": {
-        "start": "node index.js"
+        "start": "node index.js",
+        "test": "mocha"
     },
     "dependencies": {
         "@azure/cosmos": "^3.6.2",
@@ -19,5 +20,8 @@
         "morgan": "^1.9.1",
         "request": "^2.88.2",
         "socket.io": "^2.3.0"
+    },
+    "devDependencies": {
+        "chai": "^4.2.0"
     }
 }

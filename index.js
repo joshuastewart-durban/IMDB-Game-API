@@ -56,7 +56,7 @@ io.on("connection", function(socket) {
       gameService
         .createGame(data)
         .then(result => {
-          console.log('Created game', socket.id);
+          console.log("Created game", socket.id);
           socket.join(result.id);
           socket.emit("newGame", {
             gameId: result.id
@@ -75,14 +75,23 @@ io.on("connection", function(socket) {
    */
   socket.on("joinGame", function(data) {
     gameService.joinGame(data).then(result => {
-      console.log('joinedGame',socket.id);
+      console.log("joinedGame", socket.id);
       if (result.success) {
         socket.join(data.game);
         socket.emit("joinGame", {
-            gameId: data.game
+          gameId: data.game
+        });
+        socket.broadcast
+          .to(data.game)
+          .emit("playerOne", {
+            joined: data.name,
+            question: result.question.title
           });
-        socket.broadcast.to(data.game).emit("playerOne", { joined: data.name , question: result.question});
-        socket.emit("playerTwo", { name: data.name, game: data.game, question: result.question});
+        socket.emit("playerTwo", {
+          name: data.name,
+          game: data.game,
+          question: result.question.title
+        });
       } else {
         socket.emit("err", { message: "Sorry, The game is full!" });
       }
@@ -93,11 +102,20 @@ io.on("connection", function(socket) {
    * Handle the turn played by either player and notify the other.
    */
   socket.on("playTurn", function(data) {
-      
-    socket.broadcast.to(data.game).emit("turnPlayed", {
-      question: data.tile,
-      score: score,
-      game: data.game
+    console.log(data, "data");
+    gameService.playTurn(data).then(result => {
+      socket.broadcast.to(data.game).emit("turnPlayed", {
+        question: result.question.title,
+        score: result.score,
+        finished: result.finished,
+        playerId: data.playerId
+      });
+      socket.emit("turnPlayed", {
+        question: result.question.title,
+        score: result.score,
+        finished: result.finished,
+        playerId: data.playerId
+      });
     });
   });
 
