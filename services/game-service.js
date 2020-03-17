@@ -29,8 +29,9 @@ class GameService {
       .then(result => {
         return result;
       });
+
     const item = {
-      id: "game-" + Math.floor(Math.random() * 100000 + 10).toString(),
+      id: data.id,
       players: {
         playerOne: {
           id: 1,
@@ -38,7 +39,8 @@ class GameService {
           score: 0,
           joined: true,
           nextIndex: 0,
-          finished: false
+          finished: false,
+          winner: false
         },
         playerTwo: {
           id: 2,
@@ -46,7 +48,8 @@ class GameService {
           score: 0,
           joined: false,
           nextIndex: 0,
-          finished: false
+          finished: false,
+          winner: false
         }
       },
       questions
@@ -79,7 +82,8 @@ class GameService {
         return {
           success: true,
           data: result,
-          question: result.questions[0]
+          question: result.questions[0],
+          players: result.players
         };
       })
       .catch(err => {
@@ -92,30 +96,57 @@ class GameService {
     let gameData = await this.gameDao.getItem(data.game).then(result => {
       // get question result
       let player = result.players[data.playerId];
+
+      let opponentId =
+        data.playerId === "playerOne" ? "playerOne" : "playerTwo";
+      let winner = "";
+      console.log(
+        "current index",
+        player.nextIndex - 1,
+        "next index",
+        player.nextIndex
+      );
       let answerResult = gameUtils._validateAnswer(
         data.answer,
         data.question,
-        result.questions[player.nextIndex]
+        result.questions[player.nextIndex - 1]
       );
+      console.log("answer", answerResult);
       let score = gameUtils._score(answerResult, player.score);
-
       // update player score
       result.players[data.playerId].score = score;
       if (player.nextIndex < 8) {
-        result.players[data.playerId].nextIndex = player.nextIndex++;
+        result.players[data.playerId].nextIndex = ++player.nextIndex;
       } else {
         result.players[data.playerId].finished = true;
+        if (
+          result.players[opponentId].finished &&
+          result.players[data.playerId].finished
+        ) {
+          winner = gameUtils._winner(result.players);
+          if (winner && winner !== "draw") {
+            result.players[winner].winner = true;
+          }
+        }
       }
-      return result;
+
+      return { result, winner };
     });
+
+    throw Error('Try again');
     // return player score
     let score = await this.gameDao
-      .updateItem(data.game, gameData)
+      .updateItem(data.game, gameData.result)
       .then(result => {
         return {
           score: result.players[data.playerId].score,
-          question: result.questions[result.players[data.playerId].nextIndex],
-          finished: result.players[data.playerId].finished
+          question:
+            result.players[data.playerId].nextIndex !== 9
+              ? result.questions[result.players[data.playerId].nextIndex - 1]
+              : "",
+          finished: result.players[data.playerId].finished,
+          gameResult: gameData.winner,
+          players: result.players
         };
       });
     return score;

@@ -28,3 +28,53 @@ describe("_score", () => {
       expect(gameUtils._score(answer,currentScore)).to.equal(result)
     });
   });
+
+
+describe("_winner", () => {
+    it("should return the winner Id", () => {
+      let players = {
+        playerOne: {
+          id: 1,
+          name: 'test1',
+          score: 1,
+          joined: true,
+          nextIndex: 0,
+          finished: true,
+          winner: false
+        },
+        playerTwo: {
+          id: 2,
+          name: "test2",
+          score: 4,
+          joined: true,
+          nextIndex: 0,
+          finished: true,
+          winner: false
+        }
+      };
+      expect(gameUtils._winner(players)).to.equal('playerTwo')
+    });
+    it("should return the draw", () => {
+        let players = {
+          playerOne: {
+            id: 1,
+            name: 'test1',
+            score: 1,
+            joined: true,
+            nextIndex: 0,
+            finished: true,
+            winner: false
+          },
+          playerTwo: {
+            id: 2,
+            name: "test2",
+            score: 1,
+            joined: true,
+            nextIndex: 0,
+            finished: true,
+            winner: false
+          }
+        };
+        expect(gameUtils._winner(players)).to.equal('draw')
+      });
+  });

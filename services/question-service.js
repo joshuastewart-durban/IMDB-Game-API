@@ -14,8 +14,9 @@ class QuestionService {
           yearSet = $(".titleColumn span");
           titleSet = $(".titleColumn a");
           for (let i = 0; i < yearSet.length; i++) {
+            let year = $(yearSet[i]).text().replace(/[()]/g,'');
             movies.push({
-              year: $(yearSet[i]).text(),
+              year,
               title: $(titleSet[i]).text()
             });
           }

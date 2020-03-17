@@ -53,20 +53,22 @@ io.on("connection", function(socket) {
    */
   socket.on("createGame", function(data) {
     if (data.name) {
+      let id = "game-" + Math.floor(Math.random() * 100000 + 10).toString();
+      socket.join(id);
+      data.id = id;
       gameService
         .createGame(data)
         .then(result => {
           console.log("Created game", socket.id);
-          socket.join(result.id);
           socket.emit("newGame", {
             gameId: result.id
           });
         })
         .catch(err => {
-          socket.emit("error", "Server error");
+          socket.emit("err", { message: 'There was an error Creating your game.' });
         });
     } else {
-      socket.emit("error", "Provide a player name.");
+      socket.emit("err", "Provide a player name.");
     }
   });
 
@@ -74,49 +76,89 @@ io.on("connection", function(socket) {
    * Connect the Player 2 to the room he requested. Show error if room full.
    */
   socket.on("joinGame", function(data) {
-    gameService.joinGame(data).then(result => {
-      console.log("joinedGame", socket.id);
-      if (result.success) {
-        socket.join(data.game);
-        socket.emit("joinGame", {
-          gameId: data.game
-        });
-        socket.broadcast
-          .to(data.game)
-          .emit("playerOne", {
-            joined: data.name,
-            question: result.question.title
+    gameService
+      .joinGame(data)
+      .then(result => {
+        console.log("joinedGame", socket.id);
+        if (result.success) {
+          socket.join(data.game);
+          socket.emit("joinGame", {
+            gameId: data.game
           });
-        socket.emit("playerTwo", {
-          name: data.name,
-          game: data.game,
-          question: result.question.title
+          socket.broadcast.to(data.game).emit("playerOne", {
+            joined: data.name,
+            question: result.question.title,
+            players: result.players
+          });
+          socket.emit("playerTwo", {
+            name: data.name,
+            game: data.game,
+            question: result.question.title,
+            players: result.players
+          });
+        } else {
+          socket.emit("err", { message: "Sorry, The game is full!" });
+        }
+      })
+      .catch(error => {
+        socket.emit("err", {
+          message: "There was an issue while joining your game!"
         });
-      } else {
-        socket.emit("err", { message: "Sorry, The game is full!" });
-      }
-    });
+      });
+  });
+
+  socket.on("disconnect", function() {
+    console.log("DisConnected");
+  });
+  socket.on("error", function(e) {
+    console.log("System", e ? e : "A unknown error occurred");
   });
 
   /**
    * Handle the turn played by either player and notify the other.
    */
   socket.on("playTurn", function(data) {
-    console.log(data, "data");
-    gameService.playTurn(data).then(result => {
-      socket.broadcast.to(data.game).emit("turnPlayed", {
-        question: result.question.title,
-        score: result.score,
-        finished: result.finished,
-        playerId: data.playerId
+    gameService
+      .playTurn(data)
+      .then(result => {
+        socket.broadcast.to(data.game).emit("turnPlayed", {
+          question: result.question.title,
+          score: result.score,
+          finished: result.finished,
+          playerId: data.playerId
+        });
+        socket.emit("turnPlayed", {
+          question: result.question.title,
+          score: result.score,
+          finished: result.finished,
+          playerId: data.playerId
+        });
+        if (result.finished) {
+          if (
+            result.players.playerOne.finished &&
+            result.players.playerTwo.finished
+          ) {
+            let winner;
+            let draw = false;
+            if (result.gameResult !== "draw") {
+              winner = result.players.playerOne.winner
+                ? "playerOne"
+                : "playerTwo";
+            } else {
+              draw = true;
+            }
+            socket.emit("result", {
+              winnerId: winner,
+              draw
+            });
+          }
+        }
+      })
+      .catch(error => {
+        socket.emit("err", {
+          message: "We are currently experiencing an issue please try again later."
+        });
       });
-      socket.emit("turnPlayed", {
-        question: result.question.title,
-        score: result.score,
-        finished: result.finished,
-        playerId: data.playerId
-      });
-    });
   });
 
   /**
