@@ -110,6 +110,7 @@ io.on("connection", function(socket) {
   socket.on("disconnect", function() {
     console.log("DisConnected");
   });
+  
   socket.on("error", function(e) {
     console.log("System", e ? e : "A unknown error occurred");
   });
@@ -131,7 +132,8 @@ io.on("connection", function(socket) {
           question: result.question.title,
           score: result.score,
           finished: result.finished,
-          playerId: data.playerId
+          playerId: data.playerId,
+          answer: result.answer
         });
         if (result.finished) {
           if (
@@ -147,10 +149,14 @@ io.on("connection", function(socket) {
             } else {
               draw = true;
             }
-            socket.emit("result", {
+            socket.broadcast.to(data.game).emit("result", {
               winnerId: winner,
               draw
             });
+            socket.emit("result", {
+                winnerId: winner,
+                draw
+              });
           }
         }
       })

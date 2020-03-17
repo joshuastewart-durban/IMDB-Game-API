@@ -100,18 +100,11 @@ class GameService {
       let opponentId =
         data.playerId === "playerOne" ? "playerOne" : "playerTwo";
       let winner = "";
-      console.log(
-        "current index",
-        player.nextIndex - 1,
-        "next index",
-        player.nextIndex
-      );
       let answerResult = gameUtils._validateAnswer(
         data.answer,
         data.question,
         result.questions[player.nextIndex - 1]
       );
-      console.log("answer", answerResult);
       let score = gameUtils._score(answerResult, player.score);
       // update player score
       result.players[data.playerId].score = score;
@@ -130,10 +123,8 @@ class GameService {
         }
       }
 
-      return { result, winner };
+      return { result, winner, answer:  answerResult};
     });
-
-    throw Error('Try again');
     // return player score
     let score = await this.gameDao
       .updateItem(data.game, gameData.result)
@@ -146,7 +137,8 @@ class GameService {
               : "",
           finished: result.players[data.playerId].finished,
           gameResult: gameData.winner,
-          players: result.players
+          players: result.players,
+          answer: gameData.answer
         };
       });
     return score;
